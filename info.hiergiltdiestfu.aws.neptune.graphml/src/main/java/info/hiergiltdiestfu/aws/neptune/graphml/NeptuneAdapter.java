@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 
 import org.apache.tinkerpop.gremlin.driver.Cluster;
@@ -25,6 +26,17 @@ import org.springframework.web.util.HtmlUtils;
 public class NeptuneAdapter {
 
 	private static final ObjectFactory o = new ObjectFactory();
+	private static final JAXBContext ctx;
+	private static final Marshaller mrshl;
+	static {
+		try {
+			ctx = JAXBContext.newInstance(ObjectFactory.class);
+			mrshl = ctx.createMarshaller();
+			mrshl.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+		} catch (JAXBException e) {
+			throw new RuntimeException(e);
+		}
+	}
 	private static final String SOURCE = new Object().toString(), TARGET = new Object().toString();
 
 	public static void main(String[] args) throws Throwable {
@@ -36,10 +48,6 @@ public class NeptuneAdapter {
 		final var objects = convert();
 		final var desc = objects.getValue().getDesc();
 		objects.getValue().setDesc("Exported from AWS Neptune");
-
-		final JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
-		final var mrshl = ctx.createMarshaller();
-		mrshl.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
 
 		mrshl.marshal(objects, out);
 
