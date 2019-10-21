@@ -1,14 +1,12 @@
 package info.hiergiltdiestfu.aws.neptune.graphml;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
+
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,19 +14,13 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
 
+import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
 import org.apache.tinkerpop.gremlin.structure.T;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerFactory;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
-import org.graphdrawing.graphml.xmlns.DataType;
-import org.graphdrawing.graphml.xmlns.EdgeType;
-import org.graphdrawing.graphml.xmlns.GraphEdgedefaultType;
-import org.graphdrawing.graphml.xmlns.GraphmlType;
-import org.graphdrawing.graphml.xmlns.KeyForType;
-import org.graphdrawing.graphml.xmlns.KeyType;
-import org.graphdrawing.graphml.xmlns.NodeType;
-import org.graphdrawing.graphml.xmlns.ObjectFactory;
+import org.graphdrawing.graphml.xmlns.*;
+import org.springframework.web.util.HtmlUtils;
 
 public class NeptuneAdapter {
 
@@ -109,11 +101,11 @@ public class NeptuneAdapter {
 	private DataType buildData(Entry<Object, Object> entry) {
 		final DataType result = o.createDataType();
 
-		result.setKey(String.valueOf(entry.getKey()));
+		result.setKey(HtmlUtils.htmlEscape(String.valueOf(entry.getKey())));
 		var value = entry.getValue();
 		if (value instanceof List && ((List<?>) value).size() == 1)
 			value = ((List<?>) value).get(0);
-		result.setContent(String.valueOf(value));
+		result.setContent(HtmlUtils.htmlEscape(String.valueOf(value)));
 
 		return result;
 	}
@@ -123,7 +115,7 @@ public class NeptuneAdapter {
 		final var eval = entry.getValue();
 
 		final KeyType k = o.createKeyType();
-		k.setId(ekey);
+		k.setId(HtmlUtils.htmlEscape(ekey));
 		k.setFor(forT);
 		// attr.name?
 		// attr.type
@@ -201,17 +193,23 @@ public class NeptuneAdapter {
 	}
 
 	private static GraphTraversalSource setup() {
-//		Cluster.Builder builder = Cluster.build();
-//		builder.addContactPoint("your-neptune-endpoint");
-//		builder.port(8182);
-//		builder.enableSsl(true);
-//		builder.keyCertChainFile("resources/aws/SFSRootCAG2.pem");
-//
-//		Cluster cluster = builder.create();
-//
-//		GraphTraversalSource g = traversal().withRemote(DriverRemoteConnection.using(cluster));
-		final TinkerGraph graph = TinkerFactory.createGratefulDead();
+		/*
+persistence.neptune.contactpoint=localhost
+persistence.neptune.contactport=8182
+persistence.neptune.certchainfile=resources/aws/SFSRootCAG2.pem
+		 */
+		
+		Cluster.Builder builder = Cluster.build();
+		builder.addContactPoint("localhost");
+		builder.port(8182);
+		builder.enableSsl(true);
+		builder.keyCertChainFile("resources/aws/SFSRootCAG2.pem");
 
-		return graph.traversal();
+		Cluster cluster = builder.create();
+
+		GraphTraversalSource graph = traversal().withRemote(DriverRemoteConnection.using(cluster));
+//		final TinkerGraph graph = TinkerFactory.createGratefulDead();
+
+		return graph;
 	}
 }
