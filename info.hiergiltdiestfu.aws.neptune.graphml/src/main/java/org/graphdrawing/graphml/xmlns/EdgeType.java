@@ -108,7 +108,10 @@ public class EdgeType {
     public void setDesc(String value) {
         this.desc = value;
     }
-
+    
+    public String toString() {
+    	return "Objekt ist da" + this.id;
+    }
     /**
      * Gets the value of the data property.
      * 

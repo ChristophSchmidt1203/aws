@@ -1,6 +1,9 @@
 package info.hiergiltdiestfu.aws.neptune.graphml;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -18,6 +21,7 @@ public class ExporterController {
 			final var writer = response.getWriter();
 			new NeptuneAdapter().serialize(writer);
 			writer.flush();
+			
 		} catch (Exception e) {
 			try {
 				response.sendError(500, e.toString());
