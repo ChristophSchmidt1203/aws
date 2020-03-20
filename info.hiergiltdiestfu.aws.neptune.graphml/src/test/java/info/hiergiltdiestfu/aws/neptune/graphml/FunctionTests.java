@@ -17,9 +17,16 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.boot.test.context.SpringBootTest;;
+import org.springframework.boot.test.context.SpringBootTest;
 
+import info.hiergiltdiestfu.aws.neptune.graphml.AWS.AWSImporter;
+import info.hiergiltdiestfu.aws.neptune.graphml.CreateDataBase.BuiltGraph;;
 
+/**
+ * Function Test to show that the graphml/CreateDatabase Folder is capeable of creating persistent Databases
+ * @author LUNOACK
+ *
+ */
 @SpringBootTest
 class FunctionTests {
 	
@@ -27,15 +34,26 @@ class FunctionTests {
 	
 	@BeforeAll
 	public static void setup() throws Exception {
+		//AWS-Test
+		///*
+		AWSImporter imp = new AWSImporter();
+		built = imp.getGraph();
+		//*/
+		//REST-Test
+		/*
 		graph = Mockito.mock(Graph.class);
 		GraphmlType graphml = Mockito.mock(GraphmlType.class);
 		built = new BuiltGraph(graphml);
+		//*/
 	}
 	
 	private static GraphTraversalSource g;
 	private static BuiltGraph mockbuilt;
 	private static Graph graph;
 	
+	/**
+	 * Test if all functions are called correct and in the right way
+	 */
 	@Test
 	void callFunctions() {
 		mockbuilt = Mockito.mock(BuiltGraph.class);
@@ -59,6 +77,10 @@ class FunctionTests {
 		assertNull(mockbuilt.createandconnectGraph(graph));	
 	}
 	
+	/**
+	 * Test if the created Database is workable
+	 * @throws Exception
+	 */
 	@Test
 	void contextLoads() throws Exception {	
 		g = built.createandconnectGraph(graph);
@@ -80,6 +102,9 @@ class FunctionTests {
 	private Vertex v1;
 	private Vertex v2;
 	
+	/**
+	 * Function to show that the BuiltGraph Class is capeable of creating Verticies
+	 */
 	@Test
 	void testVertex() {
 		g = built.createandconnectGraph(graph);
@@ -96,6 +121,10 @@ class FunctionTests {
 	
 	private Edge e;
 	
+	
+	/**
+	 * Function to show that the BuiltGraph Class is capeable of creating Edges
+	 */
 	@Test
 	void testEdge() {
 		testVertex();

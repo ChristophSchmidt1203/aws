@@ -3,9 +3,8 @@ package info.hiergiltdiestfu.aws.neptune.graphml;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.HashMap;
+import java.net.MalformedURLException;
 import java.util.List;
-import java.util.Map;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -15,14 +14,23 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.WithOptions;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
-import org.graphdrawing.graphml.xmlns.GraphmlType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import info.hiergiltdiestfu.aws.neptune.graphml.AWS.AWSImporter;
+import info.hiergiltdiestfu.aws.neptune.graphml.CreateDataBase.BuiltGraph;
+import info.hiergiltdiestfu.aws.neptune.graphml.CreateDataBase.ImportedGraph;
+import info.hiergiltdiestfu.aws.neptune.graphml.REST.NeptuneAdapter;
+/**
+ * End-End-Test
+ * Look if the starting Database is equal to the new created
+ * @author LUNOACK
+ *
+ */
 @SpringBootTest
 public class EndtoEndTest {
 	
@@ -35,12 +43,29 @@ public class EndtoEndTest {
 		final var write = httpServletResponse.getWriter();
 		NeptuneAdapter inend = new NeptuneAdapter();
 		inend.serialize(write);
-		gs = inend.g; 
+		gs = inend.getG(); 
+		
+		BuiltGraph built; 
+	
+		//Rest Test
+		///*
 		ImportedGraph imp = new ImportedGraph();
-		BuiltGraph built = new BuiltGraph(imp.type);
-		ge = built.graph;
+		imp.restToString();
+		built = new BuiltGraph(imp.getType());
+		ge = built.getGraph();
+		//*/
+		
+		//AWS Test
+		/*
+		AWSImporter importer = new AWSImporter();
+		built = importer.getGraph();
+		ge = built.getGraph();
+		*/
 	}
 	
+	/**
+	 * Test if all Verticies are the same, ammount, properties
+	 */
 	@Test
 	public void testVertex() {
 		assertEquals(IteratorUtils.count(gs.V()),IteratorUtils.count(ge.V())); //notempty
@@ -59,6 +84,9 @@ public class EndtoEndTest {
 		assertEquals(true,stvertlabel.isEmpty());
 	}	
 		
+	/**
+	 * Test if all Edges are the same, ammount ,properties and connections
+	 */
 	@Test
 	public void testEdge() {
 		assertEquals(IteratorUtils.count(gs.E()),IteratorUtils.count(ge.E()));
@@ -71,40 +99,49 @@ public class EndtoEndTest {
 		
 		List<?> edgeids = ge.E().id().toList();
 		for(Object i : edgeids) {
-			assertEquals(gs.E(i.toString()).properties(),ge.E(i.toString()).properties());
+			assertEquals(gs.E(i.toString()).valueMap().next().toString(),ge.E(i.toString()).valueMap().next().toString());
 		}
 	}	
 	
+	
 	@Test
-	public void test() {
-		BuiltGraph built = new BuiltGraph(Mockito.mock(GraphmlType.class));
-		GraphTraversalSource test = built.createandconnectGraph(Mockito.mock(Graph.class));
+	public void test() throws MalformedURLException {
+		Graph g = TinkerGraph.open();
+		ImportedGraph imp = new ImportedGraph();
+		imp.restToString();
+		BuiltGraph built = new BuiltGraph(imp.getType());
+		GraphTraversalSource test = built.createandconnectGraph(g);
 		
 		test.addV("label").property(T.id,"1").next();
 		test.addV("label").property(T.id,"2").next();
-		System.out.println(test.V().valueMap().with(WithOptions.tokens).toList());
 		
-		GraphTraversal<Edge, Edge> edge = test.addE("label")
-				.from("1")
-				.to("2")
+		GraphTraversal<Edge, Edge> edge = test.addE("HUE")
+				.from(test.V("1"))
+				.to(test.V("2"))
 				.property(T.id,"0");
 		
-		edge.property("wheiht", "1");
+		edge.property("wheight", "2");
 		edge.property("hello", "2");
-		edge.iterate();
+		edge.next();
 		
-		GraphTraversalSource test1 = built.createandconnectGraph(Mockito.mock(Graph.class));
+		GraphTraversalSource test1 = built.createandconnectGraph(g);
 		
 		test1.addV("label").property(T.id,"1").next();
 		test1.addV("label").property(T.id,"2").next();
 		
-		test1.addE("powered").from("1").to("2").property("wheight", "2").property("hello", "yes").next();
+		GraphTraversal<Edge, Edge> edge1 = test1.addE("HUE")
+				.from(test1.V("1"))
+				.to(test1.V("2"))
+				.property(T.id,"0");
 		
-		System.out.println(test.V().valueMap().with(WithOptions.tokens).toList());
-		System.out.println(test1.V().valueMap().with(WithOptions.tokens).toList());
+		edge1.property("wheight", "2");
+		edge1.property("hello", "2");
+		edge1.next();
+		
+		List<?> edgeids = test.E().id().toList();
+		for(Object i : edgeids) {
+			assertEquals(test.E(i.toString()).valueMap().next(),test1.E(i.toString()).valueMap().next());
+		}
 	}
-	//doku!!!!
-}	//für bugs testfälle schreiben(zum späteren erinnern), mehrere properties vergleichen
-	//pull requests, review über code
-	//end to end test
+}	
 	
