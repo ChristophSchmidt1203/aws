@@ -1,30 +1,56 @@
-package info.hiergiltdiestfu.aws.neptune.graphml.AWS;
+package info.hiergiltdiestfu.aws.neptune.graphml.Aws;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.UUID;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 
-import info.hiergiltdiestfu.aws.neptune.graphml.REST.NeptuneAdapter;
+import info.hiergiltdiestfu.aws.neptune.graphml.Createdatabase.NeptuneAdapter;
+/**
+ * 
+ * This class uploads an AWS backup file to AWS S3.
+ * @author LUNOACK
+ *
+ */
 
+@Component
 public class AWSExporter {
 	
-	private AmazonS3 s3conn;
-	private static final String BUCKET_NAME = "test-graph-backup";
+	final Logger logger = LogManager.getLogger(AWSExporter.class);
 	
-	public AWSExporter() {
-		var file = createTempFile();
-		file = writeFile(file);
-		createConnection();
-		uploadFile(file);
+	/**
+	 * AWS S3 Connection
+	 */
+	private AmazonS3 amazons3;
+	
+	/**
+	 * Amazon S3 BucketName
+	 */
+	private String awss3bucket;
+	
+    /**
+     * Create Connection to AWS-S3, Configuration is in the properties File.
+     * @param awsregion
+     * @param awscredentials
+     * @param awsbucket
+     */
+	@Autowired
+	public AWSExporter(String awsregion, AWSCredentialsProvider awscredentials, String awsbucket) {
+		this.amazons3 = AmazonS3ClientBuilder.standard()
+                .withCredentials(awscredentials)
+                .withRegion(awsregion).build();
+        this.awss3bucket = awsbucket;
 	}
 	
 	/**
@@ -32,13 +58,17 @@ public class AWSExporter {
 	 * @return tempfile = Temporary File 
 	 */
 	public File createTempFile() {
+		logger.info("Creating File...");
 		File tempfile = null;
 		final String uuid = UUID.randomUUID().toString();
+		
 		try {
 			tempfile =  File.createTempFile(uuid, ".xml");
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("Could not create File with Exception:\n {}",e);
 		}
+		
+		writeFile(tempfile);
 		
 		return tempfile;
 	}
@@ -49,39 +79,40 @@ public class AWSExporter {
 	 * @return tempfile = File with Data
 	 */
 	public File writeFile(File tempfile) {
+		logger.info("Write Database-Data on File...");
+		
 		try {
 			new NeptuneAdapter().serialize(new FileWriter(tempfile));
 		}catch(Exception e) {
-			System.err.print(e);
+			logger.error("Could not create Class NeptuneAdapter with Exception:\n {}",e);
 		}
+		
+		uploadFile(tempfile);
+		
 		return tempfile;
 	}
-	/**
-	 * Create a Connection to AWS
-	 */
-	public void createConnection() {
-		BasicAWSCredentials cred = new BasicAWSCredentials("","");
-		s3conn = AmazonS3Client.builder()
-				.withCredentials(new AWSStaticCredentialsProvider(cred))
-				.withRegion("us-east-2")
-				.build();
-	}	
-	
+		
 	/**
 	 * Upload File 
 	 * @param tempfile = File which gets uploaded to s3
 	 */
-	public void uploadFile(File tempfile) {
+	public PutObjectRequest uploadFile(File file) {		
+		PutObjectRequest request = null;
+		
 		try {
 			String filename = String.valueOf(System.currentTimeMillis());
-			PutObjectRequest request = new PutObjectRequest(BUCKET_NAME,filename,tempfile);
-			ObjectMetadata metadata = new ObjectMetadata();
-			metadata.addUserMetadata("", "");
-			request.setMetadata(metadata);
-			s3conn.putObject(request);
+			request = new PutObjectRequest(awss3bucket,filename,file);
+			logger.info("Upload File with name {} to AWS...",filename);
+			amazons3.putObject(request);
 		}catch(AmazonS3Exception e) {
-			System.err.println(e);
+			logger.error("Could not Upload File to AWS with Exception:\n {}",e);
+		} finally {
+			
 		}
+		
+		logger.info("Upload to AWS completed.");
+		
+		return request;
 	}
 		
 	/**

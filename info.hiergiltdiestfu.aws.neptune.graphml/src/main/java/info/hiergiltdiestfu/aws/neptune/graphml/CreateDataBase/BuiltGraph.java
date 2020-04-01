@@ -1,4 +1,4 @@
-package info.hiergiltdiestfu.aws.neptune.graphml.CreateDataBase;
+package info.hiergiltdiestfu.aws.neptune.graphml.Createdatabase;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -6,7 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
+import org.apache.tinkerpop.gremlin.driver.ser.Serializers;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -19,6 +23,8 @@ import org.graphdrawing.graphml.xmlns.EdgeType;
 import org.graphdrawing.graphml.xmlns.GraphType;
 import org.graphdrawing.graphml.xmlns.GraphmlType;
 import org.graphdrawing.graphml.xmlns.NodeType;
+
+import info.hiergiltdiestfu.aws.neptune.graphml.Aws.AWSImporter;
 /**
  * 
  * @author LUNOACK
@@ -26,9 +32,19 @@ import org.graphdrawing.graphml.xmlns.NodeType;
  */
 public class BuiltGraph {
 	
+	final Logger logger = LogManager.getLogger(BuiltGraph.class);
+	
+	/**
+	 * Here the Properties of the Edges and Nodes are stored and imported into the System.
+	 */
 	private GraphmlType builtgraph;
+	
 	private Graph g;
 	private GraphTraversalSource graph;
+	
+	/**
+	 * This are all the Vertiecies which are imported into the Database.
+	 */
 	private Map<String,GraphTraversal<Vertex,Vertex>> nodeinstance = new HashMap<>();
 	
 	/**
@@ -37,12 +53,13 @@ public class BuiltGraph {
 	 */
 	public BuiltGraph(GraphmlType builtgraph) {
 		this.builtgraph= builtgraph;
-		createandconnectGraph(g);
-		extractProperties();
 		try {
-			getGraph().close();
-		} catch (Exception e) {
-			e.printStackTrace();
+			logger.info("Creating Database..");
+			createandconnectGraph(g);
+			logger.info("Extracting Properties..");
+			extractProperties();
+		}catch(Exception e) {
+			logger.error("Creating Database failed with Exception: {}",e);
 		}
 	}
 	
@@ -74,7 +91,7 @@ public class BuiltGraph {
 	 */
 	public Vertex extractNode(NodeType p , GraphTraversalSource g) { 
 		
-		List<Object> nodetmp = p.getDataOrPort(); //port schauen
+		List<Object> nodetmp = p.getDataOrPort();
 		String keyid = p.getId();
 		HashMap<String,String> mapprop = new HashMap<>();
 		for(Object r : nodetmp) {
@@ -128,13 +145,27 @@ public class BuiltGraph {
 	 * @return operational server connection 
 	 */
 	public GraphTraversalSource createandconnectGraph(Graph g) {
-		g = TinkerGraph.open();    
 		
 		//Local Database for Test
-		setGraph( g.traversal()); 
+		g = TinkerGraph.open();    
+		//setGraph( g.traversal()); 
 		
 		//Database with Connection to Server
-		//setGraph(g.traversal().withRemote(DriverRemoteConnection.using("localhost", 8182)));  
+		Cluster.Builder builder = Cluster.build()
+				.addContactPoint("localhost")
+				.port(8182)
+				.enableSsl(true).keyCertChainFile("resources/aws/SFSRootCAG2.pem")
+				.maxInProcessPerConnection(32)
+				.maxSimultaneousUsagePerConnection(32)
+				.maxContentLength(4*1024*1024)
+				.serializer(Serializers.GRAPHBINARY_V1D0);
+
+		final Cluster cluster = builder.create();
+		
+		//Frage an Christoph
+		graph = g.traversal().withRemote(DriverRemoteConnection.using(cluster));  
+		
+		graph.V().drop().iterate();
 		
 		return getGraph();
 	}

@@ -15,11 +15,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import info.hiergiltdiestfu.aws.neptune.graphml.AWS.AWSImporter;
-import info.hiergiltdiestfu.aws.neptune.graphml.CreateDataBase.BuiltGraph;
+import info.hiergiltdiestfu.aws.neptune.graphml.Createdatabase.BuiltGraph;
 
 /**
- * Class to show that negative Parameters will not work
+ * Class to show that negative Parameters will not work 
+ * I use Mockito to see if functions are called correctly, regardless of the parameter passed.
+ * In addition, Mockito helps classes to capsules and check them independently.
  * @author LUNOACK
  *
  */
@@ -28,18 +29,10 @@ public class NegativeFunctionTests {
 	
 	@BeforeAll
 	static void setup() throws IOException, JAXBException {
-		//AWS
-		/*
-		AWSImporter imp = new AWSImporter();
-		built = imp.getGraph();
-		//*/
 		
-		//REST
-		///*
 		graph = Mockito.mock(Graph.class);
 		GraphmlType mltype = Mockito.mock(GraphmlType.class);
 		built = new BuiltGraph(mltype);
-		//*/
 	}
 	
 	private static GraphTraversalSource g;

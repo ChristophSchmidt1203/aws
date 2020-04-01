@@ -1,4 +1,4 @@
-package info.hiergiltdiestfu.aws.neptune.graphml.REST;
+package info.hiergiltdiestfu.aws.neptune.graphml.Createdatabase;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 
@@ -25,8 +25,17 @@ import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.graphdrawing.graphml.xmlns.*;
 import org.springframework.web.util.HtmlUtils;
 
+/**
+ * This class creates a backup file of a graph database, in XML format.
+ * This file allows to import a new database without data loss.
+ * @author LUNOACK
+ *
+ */
 public class NeptuneAdapter {
 
+	/**
+	 * These are for the Marschall of the Graph Values.
+	 */
 	private static final ObjectFactory o = new ObjectFactory();
 	private static final JAXBContext ctx;
 	private static final Marshaller mrshl;
@@ -45,6 +54,12 @@ public class NeptuneAdapter {
 		new NeptuneAdapter().serialize(new BufferedWriter(new OutputStreamWriter(System.out), 64_000));
 	}
 
+	/**
+	 * Creates a XMl-String with the values of the Database.
+	 * @param out
+	 * @return
+	 * @throws Exception
+	 */
 	public String serialize(Writer out) throws Exception {
 		final long start = System.currentTimeMillis();
 		final var objects = convert();
@@ -62,6 +77,10 @@ public class NeptuneAdapter {
 
 	}
 
+	/**
+	 * Converts the Data in a XML Format.
+	 * @return
+	 */
 	public JAXBElement<GraphmlType> convert() {
 		final var extract = extract();
 //		System.err.println(extract);
@@ -90,6 +109,11 @@ public class NeptuneAdapter {
 		return o.createGraphml(root);
 	}
 
+	/**
+	 * Creates the Objects of the Edges.
+	 * @param entry
+	 * @return
+	 */
 	private EdgeType buildEdge(Map<Object, Object> entry) {
 		EdgeType result = o.createEdgeType();
 		result.setId(String.valueOf(entry.remove(T.id)));
@@ -101,6 +125,11 @@ public class NeptuneAdapter {
 		return result;
 	}
 
+	/**
+	 * Creates a Object if the Vertices.
+	 * @param entry
+	 * @return
+	 */
 	private NodeType buildNode(Map<Object, Object> entry) {
 		NodeType result = o.createNodeType();
 		result.setId(String.valueOf(entry.remove(T.id)));
@@ -122,6 +151,12 @@ public class NeptuneAdapter {
 		return result;
 	}
 
+	/**
+	 * Creates the KeyType of the Database.
+	 * @param entry
+	 * @param forT
+	 * @return
+	 */
 	private KeyType buildPropKey(Entry<String, Object> entry, KeyForType forT) {
 		final var ekey = entry.getKey();
 		final var eval = entry.getValue();
@@ -135,6 +170,10 @@ public class NeptuneAdapter {
 	}
 	private GraphTraversalSource g = null;
 	
+	/**
+	 * Extracts the Data from the GRaph Database.
+	 * @return
+	 */
 	public ExtractedGraph extract() {
 		setG(setup());
 
@@ -180,6 +219,11 @@ public class NeptuneAdapter {
 
 	}
 
+	/**
+	 * Adds the Properies of each Node and Edge.
+	 * @param eg
+	 * @return
+	 */
 	private static ExtractedGraph analyzeAttributes(ExtractedGraph eg) {
 		final Map<String, Object> nodeProps = initProps(eg.getNodes()), edgeProps = initProps(eg.getEdges());
 
@@ -205,6 +249,10 @@ public class NeptuneAdapter {
 		}
 	}
 
+	/**
+	 * Creates a Connection to a Database.
+	 * @return
+	 */
 	private static GraphTraversalSource setup() {
 		/*
 persistence.neptune.contactpoint=localhost

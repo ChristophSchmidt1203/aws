@@ -1,4 +1,4 @@
-package info.hiergiltdiestfu.aws.neptune.graphml.REST;
+package info.hiergiltdiestfu.aws.neptune.graphml.Createdatabase;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -6,11 +6,22 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This class manages all properties and values of the exported database.
+ * @author LUNOACK
+ *
+ */
 public class ExtractedGraph {
 
+	/**
+	 * These fields have all the properties of the Edges and Verticies.
+	 */
 	Map<String,Object> vertexProperties;
 	Map<String,Object> edgeProperties;
 	
+	/**
+	 * These fields are the exported edges and nodes.
+	 */
 	final List<Map<Object, Object>> nodes;
 	final List<Map<Object, Object>> edges;
 	public ExtractedGraph(List<Map<Object, Object>> nodes, List<Map<Object, Object>> edges) {
@@ -36,6 +47,10 @@ public class ExtractedGraph {
 	public List<Map<Object, Object>> getEdges() {
 		return edges;
 	}
+	
+	/**
+	 * Here the extracted values of the database are added to a string.
+	 */
 	@Override
 	public String toString() {
 		final int maxLen = 4;
@@ -62,8 +77,5 @@ public class ExtractedGraph {
 		}
 		builder.append("]");
 		return builder.toString();
-	}
-
-
-	
+	}	
 }

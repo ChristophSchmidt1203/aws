@@ -13,17 +13,18 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.graphdrawing.graphml.xmlns.EdgeType;
 import org.graphdrawing.graphml.xmlns.GraphmlType;
 import org.graphdrawing.graphml.xmlns.NodeType;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import info.hiergiltdiestfu.aws.neptune.graphml.AWS.AWSImporter;
-import info.hiergiltdiestfu.aws.neptune.graphml.CreateDataBase.BuiltGraph;;
+import info.hiergiltdiestfu.aws.neptune.graphml.Createdatabase.BuiltGraph;;
 
 /**
- * Function Test to show that the graphml/CreateDatabase Folder is capeable of creating persistent Databases
+ * Function Test to show that the graphml/CreateDatabase Folder is capeable of creating persistent Databases.
+ * The Data which will be restored to the Database is mocked.
+ * I use Mockito to see if functions are called correctly, regardless of the parameter passed.
+ * In addition, Mockito helps classes to capsules and check them independently.
  * @author LUNOACK
  *
  */
@@ -32,24 +33,18 @@ class FunctionTests {
 	
 	private static BuiltGraph built;
 	
+	private static GraphTraversalSource g;
+	private static BuiltGraph mockbuilt;
+	private static Graph graph;
+	
 	@BeforeAll
 	public static void setup() throws Exception {
-		//AWS-Test
-		///*
-		AWSImporter imp = new AWSImporter();
-		built = imp.getGraph();
-		//*/
-		//REST-Test
-		/*
+		
 		graph = Mockito.mock(Graph.class);
 		GraphmlType graphml = Mockito.mock(GraphmlType.class);
 		built = new BuiltGraph(graphml);
 		//*/
 	}
-	
-	private static GraphTraversalSource g;
-	private static BuiltGraph mockbuilt;
-	private static Graph graph;
 	
 	/**
 	 * Test if all functions are called correct and in the right way
@@ -157,10 +152,5 @@ class FunctionTests {
 		edge1.setTarget("2");
 		
 		e = built.extractEdge(edge1, g);
-	}
-	
-	@AfterAll
-	public static void  tearDown() {
-		
 	}
 }

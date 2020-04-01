@@ -1,107 +1,136 @@
-package info.hiergiltdiestfu.aws.neptune.graphml.AWS;
+package info.hiergiltdiestfu.aws.neptune.graphml.Aws;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
+import com.amazonaws.services.s3.model.DeleteObjectsRequest.KeyVersion;
+
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
- * 
+ * This class is there to see which backups must be kept and which can be deleted. 
+ * Backups are managed according to the time of their creation, keeping the backups of the last 7 days and the Sunday backups of the last 6 weeks.
  * @author LUNOACK
  *
  */
+@Component
 public class AWSBackupEditor {
 	
-	public AWSBackupEditor() {
-		
-	}
-
-	
-	private AmazonS3 s3;
+	final Logger logger = LogManager.getLogger(AWSBackupEditor.class);
 	
 	/**
-	 * Create a Connection to AWS
-	 * @return S3-Connection to AWS
+	 * Bucket Name for AWS S3
 	 */
-	public AmazonS3 createConnection() {
-		BasicAWSCredentials cred = new BasicAWSCredentials("","");
-		s3 = AmazonS3Client.builder()
-			.withCredentials(new AWSStaticCredentialsProvider(cred))
-			.withRegion("us-east-2")
-			.build();
-		
-		return s3;
-	}
-	
-	private final String bucket_name ="";
+	private String awss3bucket;
 	
 	/**
-	 * Function which Lists all BackUps in the AWS-Bucket and searches for old ones
+	 * AWS S3 Conection
 	 */
-	public void setBackup() {
-		createConnection();
-		ListObjectsV2Result result = s3.listObjectsV2(bucket_name);
+    private AmazonS3 amazons3;
+	
+    /**
+     * Create Connection to AWS-S3, Configuration is in the properties File.
+     * @param awsregion
+     * @param awscredentials
+     * @param awsbucket
+     */
+    @Autowired
+	public AWSBackupEditor(String awsregion, AWSCredentialsProvider awscredentials, String awsbucket) {
+		this.amazons3 = AmazonS3ClientBuilder.standard()
+                .withCredentials(awscredentials)
+                .withRegion(awsregion).build();
+        this.awss3bucket = awsbucket;
+	}
+	
+	/**
+	 * A function that looks which backups can be deleted.
+	 */
+	public void deleteBackup() {
+		logger.info("Start Backup-Editor");
+		
+		Calendar cal = Calendar.getInstance();
+		
+		Calendar dayslast7 = getLast7Days(cal);
+		Calendar weekslast6 = getLast6Weeks(cal);
+		
+		logger.info("Get Backups from AWS...");
+		ListObjectsV2Result result = amazons3.listObjectsV2(awss3bucket);
 		List<S3ObjectSummary> objects = result.getObjectSummaries();
 		
+		ArrayList<KeyVersion> keys = new ArrayList<>();
+		logger.info("These backups are deleted: ");
 		for(S3ObjectSummary obj : objects) {
-			if(keepBackup(obj)) {
-				s3.deleteObject(bucket_name,obj.getKey());
+			if(shoulddeleteBackup(obj,dayslast7,weekslast6)) {
+				logger.info("Backup: {} Date: {}",obj.getKey(),obj.getLastModified());
+				keys.add(new KeyVersion(obj.getKey()));
 			}
 		}
+
+		
+		DeleteObjectsRequest deleteObjectsRequest = new DeleteObjectsRequest(awss3bucket)
+                .withKeys(keys)
+                .withQuiet(false);
+		logger.info("Delete...");
+		amazons3.deleteObjects(deleteObjectsRequest);
+		logger.info("Backups have been deleted.");
 	}
 	
 	/**
-	 * Looking for old BackUps which can be deleted (Keep BackUps of the last 7 Days and keep each Sunday BackUp of the last 6 weeks)
+	 * Checks when the backups were created  (Keep BackUps of the last 7 Days and keep each Sunday BackUp of the last 6 weeks)
 	 * @param obj is The S3-Object 
-	 * @return false = not meant to be deleted, true = meant to be deleted
+	 * @return true = keep the BackUp, false = delete the BackUp 
 	 */
-	public boolean keepBackup(S3ObjectSummary obj) {
-		Calendar datelast7d = getLast7Days();
-		Calendar datelast6w = getLast6Weeks();
-		
+	public boolean shoulddeleteBackup(S3ObjectSummary obj, Calendar dayslast7, Calendar weekslast6) {	
 		Date objdate = obj.getLastModified();
 		Calendar objcal = Calendar.getInstance();
 		objcal.setTime(objdate);
 		
-		if(objdate.after(datelast7d.getTime())) 
+		if(objdate.after(dayslast7.getTime())) {
 			return false;
-		else 
-			if(objcal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY)
+		}
+		else { 
+			if(objcal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
 				return true;
-			else
-				if(objdate.before(datelast6w.getTime()))
-					return true;
-				else
-					return false;
+			}
+			else {
+				 return objdate.before(weekslast6.getTime());
+			}
+		}			
 	}
 	
 	/**
 	 * get the date 7 days before today
 	 * @return 
 	 */
-	public Calendar getLast7Days() {
-		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.DATE, - 7);
-		cal.set(cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH),0,0);
+	public Calendar getLast7Days(Calendar cal) {
+		Calendar calinstance = Calendar.getInstance();
+		calinstance.set(cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH),0,0);
+		calinstance.add(Calendar.DATE, - 7);
 
-		return cal;
+		return calinstance;
 	}
 	
 	/**
 	 * get the date 6 weeks before today
 	 * @return
 	 */
-	public Calendar getLast6Weeks() {
-		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.DATE, - 42);
-		cal.set(cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH),0,0);
-
-		return cal;
+	public Calendar getLast6Weeks(Calendar cal) {
+		Calendar calinstance = Calendar.getInstance();
+		calinstance.set(cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH),0,0);
+		calinstance.add(Calendar.DATE, - 42);
+	
+		return calinstance;
 	}
 }

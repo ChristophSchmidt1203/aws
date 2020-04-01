@@ -1,23 +1,18 @@
 package info.hiergiltdiestfu.aws.neptune.graphml;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import javax.xml.bind.JAXBException;
-
 import org.custommonkey.xmlunit.XMLTestCase;
 import org.custommonkey.xmlunit.XMLUnit;
-import org.hamcrest.MatcherAssert;
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.testng.annotations.BeforeMethod;
 import org.xml.sax.SAXException;
 import org.xmlunit.builder.DiffBuilder;
@@ -25,33 +20,56 @@ import org.xmlunit.diff.DefaultNodeMatcher;
 import org.xmlunit.diff.Diff;
 import org.xmlunit.diff.ElementSelectors;
 
-import info.hiergiltdiestfu.aws.neptune.graphml.AWS.AWSImporter;
-import info.hiergiltdiestfu.aws.neptune.graphml.REST.NeptuneAdapter;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
+
+import info.hiergiltdiestfu.aws.neptune.graphml.Aws.AWSExporter;
+import info.hiergiltdiestfu.aws.neptune.graphml.Aws.AWSImporter;
+import info.hiergiltdiestfu.aws.neptune.graphml.Createdatabase.NeptuneAdapter;
 
 /**
  * Test if the AWS-S3-XML is equals to the XML- which is correct to the Neptune-File
  * @author LUNOACK
  *
  */
+@SpringBootTest
 public class CompareXMLAWSTest extends XMLTestCase{
 	
-	private static final String PATH =  "XMLInput//testimporter.xml";
-	private static Resource resource = new ClassPathResource(PATH);
-	private static String s;
+	@Autowired
+	private AWSExporter awsexp;
+	
+	@Autowired
+	private AWSImporter awsimp;
+	
+	/**
+	 * This is the String of the XML-File, which is created from NeptuneAdapter
+	 */
+	private static String filexml;
+	/**
+	 * This is the String of the XML-File, which is created from the AWS-S3
+	 */
+	private static String s3xml;
+	
+	/**
+	 * File which is downloaded to the AWS 
+	 */
+	private static File resource;
+	
 	@BeforeAll
 	static void setup() throws Exception  {
 		/**
-		 * Get the XML-String from File
+		 * Load the Data of the Database into a File.
+		 * And then put it into a String
 		 */
-		new NeptuneAdapter().serialize(new FileWriter(resource.getFile()));
-		byte[] encoded = Files.readAllBytes(Paths.get((resource.getFile().getAbsolutePath())));
-		filexml = new String(encoded,StandardCharsets.US_ASCII);
+		try {
+			resource =  File.createTempFile("test", ".xml");
+		} catch (IOException e) {
+			System.out.print(e);
+		}
+		new NeptuneAdapter().serialize(new FileWriter(resource));
+		byte[] encoded = Files.readAllBytes(Paths.get((resource.getAbsolutePath())));
+		filexml = new String(encoded,StandardCharsets.US_ASCII);	
 		
-		/**
-		 * Get the XML-String from AWS-S3
-		 */
-		AWSImporter awsimp = new AWSImporter();
-		s3xml = awsimp.getData();
 	}
 
 	@BeforeMethod
@@ -61,9 +79,6 @@ public class CompareXMLAWSTest extends XMLTestCase{
 	    XMLUnit.setIgnoreWhitespace(true);
 	}
 	
-	private static String filexml;
-	private static String s3xml;
-	
 	/**
 	 * Check if Strings are equal
 	 * @throws SAXException
@@ -71,12 +86,25 @@ public class CompareXMLAWSTest extends XMLTestCase{
 	 */
 	@Test
 	void testXMLS3toFile() throws SAXException, IOException {
+		
+		/**
+		 * Upload File to AWS S3
+		 */
+		PutObjectRequest req = awsexp.uploadFile(resource);
+		
+		/**
+		 * Download File from AWS S3
+		 */ 
+		S3Object obj = awsimp.getBackupObject(req.getKey());
+		s3xml = awsimp.readAWSObject(obj);
+		
+		/**
+		 * Compare Initital File with Downloaded
+		 */
 		Diff diffxml =DiffBuilder.compare(filexml).withTest(s3xml)
 								.normalizeWhitespace().checkForSimilar()
 								.withNodeMatcher(new DefaultNodeMatcher(ElementSelectors.byNameAndAllAttributes))
 								.build();
-		System.out.println(diffxml);
 		assertFalse(diffxml.toString(), diffxml.hasDifferences());
 	}
-
 }
