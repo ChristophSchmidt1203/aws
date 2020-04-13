@@ -30,6 +30,4 @@ build/
 ### VS Code ###
 .vscode/
 
-#ignore all
 *.log
-testimporter.xml
